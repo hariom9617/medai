@@ -7,6 +7,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { DoseCompletionCard } from "@/components/patient/DoseCompletionCard";
 import { useMedication, useDoseLogs, useTodayDoses } from "@/hooks/queries";
 import { safeFormat } from "@/lib/date";
 import { BarChart, Bar, ResponsiveContainer, XAxis, Cell } from "recharts";
@@ -294,12 +295,12 @@ export default function MedicationDetail() {
             </div>
           </div>
 
-          {/* Today's Missed Doses */}
+          {/* Today's Doses */}
           {todayMissed.length > 0 && (
             <div className="card-base border-destructive/30 bg-destructive/5 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-destructive">
-                  Missed Today
+                  Today's Doses
                 </h3>
                 <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                   {todayMissed.length} missed
@@ -307,22 +308,10 @@ export default function MedicationDetail() {
               </div>
               <div className="space-y-3">
                 {todayMissed.map((d: any) => (
-                  <div
+                  <DoseCompletionCard
                     key={d._id ?? d.id}
-                    className="flex items-center gap-3 rounded-lg bg-white/60 px-3 py-2"
-                  >
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-destructive">
-                        Missed Dose
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {safeFormat(d.scheduledTime, "hh:mm a")} · Today
-                      </p>
-                    </div>
-                  </div>
+                    dose={d}
+                  />
                 ))}
               </div>
             </div>

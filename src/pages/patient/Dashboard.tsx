@@ -3,7 +3,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { StatCard } from "@/components/patient/StatCard";
 import { AIInsightCard } from "@/components/patient/AIInsightCard";
 import { MedicationCard } from "@/components/patient/MedicationCard";
+import { DoseCompletionCard } from "@/components/patient/DoseCompletionCard";
 import { RiskPredictionCard } from "@/features/ai/components/RiskPredictionCard";
+import { PageHeader, SectionCard } from "@/features/shared/ui";
 import { useMedications, useTodayDoses, useAdherenceSummary, useDoseLogs, useRisk } from "@/hooks/queries";
 import { Link } from "react-router-dom";
 import { calcStreak } from "@/utils/adherence";
@@ -112,6 +114,36 @@ export default function PatientDashboard() {
         </div>
 
         <div className="space-y-6">
+          <SectionCard title="Today's Dose Tasks">
+            <div className="space-y-3">
+              {todayLoading ? (
+                [0,1,2].map(i => <SkeletonRow key={i} />)
+              ) : (
+                todayFlat.slice(0, 5).map((dose: any, i: number) => (
+                  <DoseCompletionCard 
+                    key={dose._id ?? i} 
+                    dose={dose}
+                  />
+                ))
+              )}
+              {todayFlat.length === 0 && (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  No doses scheduled for today.
+                </p>
+              )}
+            </div>
+            {todayFlat.length > 5 && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <Link 
+                  to="/patient/today" 
+                  className="block w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  View All Today's Doses →
+                </Link>
+              </div>
+            )}
+          </SectionCard>
+
           <RiskPredictionCard 
             prediction={riskData ?? null}
             patientName={user?.fullName || "Patient"}

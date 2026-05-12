@@ -11,6 +11,7 @@ import {
 import { format } from "date-fns";
 import { safeFormat } from "@/lib/date";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { DoseCompletionCard } from "@/components/patient/DoseCompletionCard";
 import {
   useTakeDose,
   useSkipDose,
@@ -107,141 +108,19 @@ export default function Today() {
         </div>
       </div>
 
-      <div className="relative space-y-4">
+      <div className="space-y-4">
         {isLoading && todayLogs.length === 0
           ? Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="card-base p-4"><SkeletonRow /></div>
             ))
-          : todayLogs.map((dose, i) => {
-          const id = (dose as any).id ?? dose._id;
-          const medName = dose.medicationId?.name ?? "Medication";
-          const dosage = dose.medicationId?.dosage ?? "";
-          const time = safeFormat(dose.scheduledTime, "hh:mm a");
-          const isPending = dose.status === "pending";
-          const isMissed = dose.status === "missed";
-          const isTaken = dose.status === "taken";
-          const isDelayed = dose.status === "delayed";
-          const isSkipped = (dose.status as string) === "skipped";
-          const isFuture = new Date(dose.scheduledTime).getTime() > Date.now();
-          const isDueNow =
-            isPending &&
-            !isFuture &&
-            Math.abs(Date.now() - +new Date(dose.scheduledTime)) <
-              1000 * 60 * 90;
-
-          return (
-            <div key={id} className="relative flex items-start gap-4">
-              {i < todayLogs.length - 1 && (
-                <span className="absolute left-[18px] top-12 bottom-[-1rem] w-px bg-slate-200" />
-              )}
-              <div
-                className={`relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 ${
-                  isTaken || isDelayed
-                    ? "border-success bg-success text-white"
-                    : isMissed
-                      ? "border-destructive bg-destructive text-white"
-                      : isDueNow
-                        ? "border-primary bg-white text-primary"
-                        : "border-slate-200 bg-white text-slate-300"
-                }`}
-              >
-                {(isTaken || isDelayed) && <CheckCircle2 className="h-5 w-5" />}
-                {isMissed && <AlertTriangle className="h-5 w-5" />}
-                {(isPending || isSkipped) && <Clock className="h-4 w-4" />}
-              </div>
-
-              <div
-                className={`flex-1 rounded-xl border p-4 ${
-                  isMissed
-                    ? "border-destructive/30 bg-destructive/5"
-                    : isDueNow
-                      ? "border-2 border-primary bg-accent/30"
-                      : "border-slate-100 bg-white shadow-sm"
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${isMissed ? "bg-destructive/10 text-destructive" : "bg-accent text-primary"}`}
-                  >
-                    <Pill className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p
-                        className={`text-xs font-bold uppercase tracking-wider ${isMissed ? "text-destructive" : isDueNow ? "text-primary" : "text-slate-400"}`}
-                      >
-                        {time} {isMissed && "• MISSED"}{" "}
-                        {isDueNow && "• DUE NOW"}
-                      </p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE[dose.status] ?? "bg-slate-100 text-slate-600"}`}
-                      >
-                        {dose.status}
-                      </span>
-                    </div>
-                    <h4 className="mt-0.5 text-base font-bold text-slate-900">
-                      {medName}
-                    </h4>
-                    <p className="text-xs text-slate-500">{dosage}</p>
-                  </div>
-
-                  {isFuture && isPending && (
-                    <Lock className="h-4 w-4 text-slate-300" />
-                  )}
-
-                  {(isTaken || isDelayed) && (
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-success px-3 py-1.5 text-xs font-semibold text-white">
-                        Taken at{" "}
-                        {safeFormat(
-                          dose.takenAt ?? dose.scheduledTime,
-                          "hh:mm a",
-                        )}
-                      </span>
-                      <button className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-
-                  {isMissed && (
-                    <button
-                      onClick={() => markTaken(id)}
-                      className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-                    >
-                      Log Late Dose
-                    </button>
-                  )}
-
-                  {isPending && !isFuture && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => markTaken(id)}
-                        className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary-glow"
-                      >
-                        Mark Taken
-                      </button>
-                      <button
-                        onClick={() => setSkipping(id)}
-                        className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Skip
-                      </button>
-                    </div>
-                  )}
-
-                  {isSkipped && (
-                    <span className="rounded-full bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600">
-                      Skipped
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+          : todayLogs.map((dose, i) => (
+              <DoseCompletionCard 
+                key={(dose as any).id ?? dose._id ?? i} 
+                dose={dose}
+              />
+            ))}
         {todayLogs.length === 0 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 text-center py-8">
             No doses scheduled for today.
           </p>
         )}
