@@ -139,6 +139,7 @@ export interface AdherenceSummary {
 
 export interface AdherenceHistoryEntry {
   date: string;
+  adherence: number;
   medications: {
     medicationId: string;
     name: string;
