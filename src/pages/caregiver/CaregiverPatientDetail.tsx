@@ -72,7 +72,11 @@ export default function CaregiverPatientDetail() {
     emergencyContact: patient.emergencyContact?.phone ?? patient.emergencyContact ?? "N/A",
     avatarColor: "bg-slate-100 text-slate-700",
     adherenceRate: avgAdherence,
-    riskLevel: (avgAdherence < 60 ? "high" : avgAdherence < 80 ? "medium" : "low") as "low" | "medium" | "high",
+    riskLevel: (avgAdherence < 50
+      ? "high"
+      : avgAdherence < 80
+        ? "medium"
+        : "low") as "low" | "medium" | "high",
     riskScore: 100 - avgAdherence,
     activeMedications: adherenceArr.length,
     missedThisWeek: recentAlerts.filter((a) => a.type === "missed_dose").length,

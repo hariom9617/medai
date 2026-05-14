@@ -15,7 +15,7 @@ const NAV_BY_ROLE: Record<Role, { to: string; label: string; icon: React.Compone
   caregiver: [
     { to: "/caregiver/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/caregiver/patients", label: "Patients", icon: Heart },
-    { to: "/caregiver/alerts", label: "Alerts", icon: Bell },
+    // { to: "/caregiver/alerts", label: "Alerts", icon: Bell },
     { to: "/caregiver/notifications", label: "Notifications", icon: Activity },
   ],
   doctor: [

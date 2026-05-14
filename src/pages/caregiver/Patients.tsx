@@ -18,31 +18,34 @@ export default function CaregiverPatients() {
 
   const { data: patients = [], isLoading, error } = usePatients();
 
-  const enriched = patients.map((p: any) => ({
-    id: p.id,
-    fullName: p.fullName ?? "Unknown",
-    email: p.email ?? "",
-    phone: p.phone ?? "",
-    age: p.age ?? 0,
-    conditions: p.conditions ?? [],
-    emergencyContact: p.emergencyContact ?? "N/A",
-    avatarColor: "bg-slate-100 text-slate-700",
-    adherenceRate: p.adherenceRate ?? 0,
-    riskLevel: ((p.adherenceRate ?? 0) < 60
-      ? "high"
-      : (p.adherenceRate ?? 0) < 80
-        ? "medium"
-        : "low") as "low" | "medium" | "high",
-    riskScore: 100 - (p.adherenceRate ?? 0),
-    activeMedications: 0,
-    missedThisWeek: 0,
-    caregiver: "You",
-    doctor: "—",
-    nextDoseAt: "—",
-    nextMedication: "N/A",
-    lastActiveISO: new Date().toISOString(),
-    isActive: p.isActive ?? true,
-  }));
+  const enriched = patients.map((p: any) => {
+    const adherenceRate = p.todayAdherence ?? p.adherenceRate ?? 0;
+    return {
+      id: p.patient?.id ?? p.id,
+      fullName: p.patient?.fullName ?? p.fullName ?? "Unknown",
+      email: p.patient?.email ?? p.email ?? "",
+      phone: p.patient?.phone ?? p.phone ?? "",
+      age: p.patient?.age ?? p.age ?? 0,
+      conditions: p.conditions ?? [],
+      emergencyContact: p.emergencyContact ?? "N/A",
+      avatarColor: "bg-slate-100 text-slate-700",
+      adherenceRate,
+      riskLevel: (adherenceRate < 50
+        ? "high"
+        : adherenceRate < 80
+          ? "medium"
+          : "low") as "low" | "medium" | "high",
+      riskScore: 100 - adherenceRate,
+      activeMedications: p.activeMedications ?? 0,
+      missedThisWeek: 0,
+      caregiver: "You",
+      doctor: "—",
+      nextDoseAt: "—",
+      nextMedication: "N/A",
+      lastActiveISO: p.patient?.lastActive ?? new Date().toISOString(),
+      isActive: p.patient?.isActive ?? p.isActive ?? true,
+    };
+  });
 
   const list = useMemo(
     () =>

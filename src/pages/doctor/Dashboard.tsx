@@ -9,7 +9,6 @@ import {
   Send,
   BellRing,
   Eye,
-  Stethoscope,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader, KpiCard, SectionCard } from "@/features/shared/ui";
@@ -18,8 +17,6 @@ import { RiskPredictionCard } from "@/features/ai/components/RiskPredictionCard"
 import {
   useDoctorPatients,
   useDoctorAlerts,
-  useRisk,
-  useInsights,
   useAdherenceHistory,
 } from "@/hooks/queries";
 import { formatDistanceToNow } from "date-fns";
@@ -30,22 +27,43 @@ import {
   SkeletonCard,
 } from "@/components/common/Skeletons";
 
+/** Derive risk level from adherence score (0–100) */
+function getRiskLevel(adherence: number): "high" | "medium" | "low" {
+  if (adherence < 50) return "high";
+  if (adherence < 80) return "medium";
+  return "low";
+}
+
+/** Normalize a raw patient from useDoctorPatients */
+function normalizePatient(p: any) {
+  const adherenceRate = p.todayAdherence ?? p.adherenceRate ?? 0;
+  return {
+    ...p,
+    adherenceRate,
+    riskLevel: getRiskLevel(adherenceRate),
+  };
+}
+
 export default function DoctorDashboard() {
   const [q, setQ] = useState("");
-  const { data: patients = [], isLoading: patientsLoading } =
+  const { data: rawPatients = [], isLoading: patientsLoading } =
     useDoctorPatients();
   const { data: alerts = [] } = useDoctorAlerts({ status: "active" });
   const { data: adherenceHistory } = useAdherenceHistory({ groupBy: "day" });
 
-  // Calculate metrics from real data
+  // ✅ Normalize patients: use todayAdherence, derive riskLevel
+  const patients = useMemo(
+    () => rawPatients.map(normalizePatient),
+    [rawPatients],
+  );
+
+  // KPI metrics
   const total = patients.length;
-  const highRisk = patients.filter((p) => p.adherenceRate < 70).length;
-  const activeAlerts = alerts.filter((a) => a.status === "active").length;
+  const highRisk = patients.filter((p) => p.riskLevel === "high").length;
+  const activeAlerts = alerts.filter((a: any) => a.status === "active").length;
   const avgAdherence =
     total > 0
-      ? Math.round(
-          patients.reduce((s, p) => s + (p.adherenceRate || 0), 0) / total,
-        )
+      ? Math.round(patients.reduce((s, p) => s + p.adherenceRate, 0) / total)
       : 0;
 
   const filtered = useMemo(
@@ -56,17 +74,17 @@ export default function DoctorDashboard() {
     [patients, q],
   );
 
-  // Get risk scores for top 2 patients
+  // Top 2 lowest adherence patients for risk cards
   const topRiskPatients = [...patients]
-    .sort((a, b) => (a.adherenceRate || 0) - (b.adherenceRate || 0))
+    .sort((a, b) => a.adherenceRate - b.adherenceRate)
     .slice(0, 2);
 
-  // Prepare adherence chart data
+  // 30-day adherence trend
   const monthlyAdherence = useMemo(() => {
     const history = Array.isArray(adherenceHistory) ? adherenceHistory : [];
-    return history.slice(-30).map((h) => ({
-      date: h.date, // ✅ use actual date string from API
-      rate: h.adherence ?? 0, // ✅ correct field
+    return history.slice(-30).map((h: any) => ({
+      date: h.date,
+      rate: h.adherence ?? 0,
     }));
   }, [adherenceHistory]);
 
@@ -94,6 +112,7 @@ export default function DoctorDashboard() {
         </>
       ) : (
         <>
+          {/* KPI Cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <KpiCard
               label="Monitored Patients"
@@ -105,7 +124,7 @@ export default function DoctorDashboard() {
             <KpiCard
               label="High-Risk"
               value={highRisk}
-              sub="Need intervention"
+              sub="< 50% adherence"
               icon={AlertTriangle}
               tone="destructive"
             />
@@ -125,6 +144,7 @@ export default function DoctorDashboard() {
             />
           </div>
 
+          {/* Chart + Risk Cards */}
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <SectionCard
@@ -142,18 +162,15 @@ export default function DoctorDashboard() {
                   key={p.id}
                   prediction={{
                     patientId: p.id,
-                    overallRisk: 100 - (p.adherenceRate || 0),
-                    riskLevel:
-                      p.adherenceRate < 70
-                        ? "high"
-                        : p.adherenceRate < 85
-                          ? "medium"
-                          : "low",
+                    overallRisk: 100 - p.adherenceRate,
+                    riskLevel: p.riskLevel,
                     factors: [],
                     recommendations: [
-                      p.adherenceRate < 70
+                      p.riskLevel === "high"
                         ? "Immediate intervention recommended"
-                        : "Continue monitoring",
+                        : p.riskLevel === "medium"
+                          ? "Monitor closely this week"
+                          : "Continue current regimen",
                     ],
                     calculatedAt: new Date().toISOString(),
                   }}
@@ -163,6 +180,7 @@ export default function DoctorDashboard() {
             </div>
           </div>
 
+          {/* Search + Alerts + Interventions */}
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
             <SectionCard title="Quick Patient Search" className="lg:col-span-1">
               <div className="relative">
@@ -175,37 +193,29 @@ export default function DoctorDashboard() {
                 />
               </div>
               <ul className="mt-3 max-h-72 space-y-1 overflow-auto">
-                {filtered.slice(0, 6).map((p) => {
-                  const riskLevel =
-                    (p.adherenceRate || 0) < 70
-                      ? "high"
-                      : (p.adherenceRate || 0) < 85
-                        ? "medium"
-                        : "low";
-                  return (
-                    <li key={p.id}>
-                      <Link
-                        to={`/doctor/patients/${p.id}`}
-                        className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-sm hover:bg-slate-50"
+                {filtered.slice(0, 6).map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      to={`/doctor/patients/${p.id}`}
+                      className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-sm hover:bg-slate-50"
+                    >
+                      <span className="truncate font-medium text-slate-900">
+                        {p.fullName}
+                      </span>
+                      <span
+                        className={`text-xs font-bold ${
+                          p.riskLevel === "high"
+                            ? "text-destructive"
+                            : p.riskLevel === "medium"
+                              ? "text-warning"
+                              : "text-success"
+                        }`}
                       >
-                        <span className="truncate font-medium text-slate-900">
-                          {p.fullName}
-                        </span>
-                        <span
-                          className={`text-xs font-bold ${
-                            riskLevel === "high"
-                              ? "text-destructive"
-                              : riskLevel === "medium"
-                                ? "text-warning"
-                                : "text-success"
-                          }`}
-                        >
-                          {p.adherenceRate}%
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
+                        {p.adherenceRate}%
+                      </span>
+                    </Link>
+                  </li>
+                ))}
                 {filtered.length === 0 && (
                   <li className="px-2 py-3 text-sm text-slate-500">
                     No matches
@@ -216,7 +226,7 @@ export default function DoctorDashboard() {
 
             <SectionCard title="Alert Feed" className="lg:col-span-1">
               <ul className="space-y-3">
-                {alerts.slice(0, 4).map((a) => (
+                {alerts.slice(0, 4).map((a: any) => (
                   <li key={a.id} className="flex gap-3">
                     <span
                       className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
@@ -265,6 +275,7 @@ export default function DoctorDashboard() {
             </SectionCard>
           </div>
 
+          {/* Action Buttons */}
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <button
               onClick={() =>

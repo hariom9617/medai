@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -11,11 +12,13 @@ import { usePatients, useAlerts } from "@/hooks/queries";
 import { safeDistanceToNow } from "@/lib/date";
 import { SkeletonGrid } from "@/components/common/Skeletons";
 
+// ✅ Matches backend: <50 high, 50-79 medium, 80+ low
 function riskFromRate(rate: number): "low" | "medium" | "high" {
-  if (rate >= 90) return "low";
-  if (rate >= 75) return "medium";
+  if (rate >= 80) return "low";
+  if (rate >= 50) return "medium";
   return "high";
 }
+
 const RISK = {
   high: {
     border: "border-l-destructive",
@@ -35,8 +38,22 @@ const RISK = {
 } as const;
 
 export default function CaregiverDashboard() {
-  const { data: patients = [], isLoading } = usePatients();
+  const { data: rawPatients = [], isLoading } = usePatients();
   const { data: alerts = [] } = useAlerts({ status: "active" });
+
+  // ✅ Normalize: use todayAdherence (%), not adherenceScore (raw int)
+  const patients = useMemo(
+    () =>
+      rawPatients.map((p: any) => ({
+        id: p.patient?.id ?? p.id,
+        fullName: p.patient?.fullName ?? p.fullName ?? "Unknown",
+        email: p.patient?.email ?? p.email,
+        lastActive: p.patient?.lastActive ?? p.lastActive ?? null,
+        adherenceRate: p.todayAdherence ?? p.adherenceRate ?? 0,
+      })),
+    [rawPatients],
+  );
+
   const unread = alerts.length;
   const avg = patients.length
     ? Math.round(
@@ -70,15 +87,17 @@ export default function CaregiverDashboard() {
         />
         <Stat
           label="Active Patients"
-          value={patients.filter((p) => p.adherenceRate >= 75).length}
+          value={patients.filter((p) => p.adherenceRate >= 80).length}
           sub="On track"
           icon={<CheckCheck className="h-5 w-5" />}
           tone="success"
         />
       </div>
+
       <div className="mt-8 mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900">Patient Care Grid</h2>
       </div>
+
       {isLoading ? (
         <SkeletonGrid count={6} />
       ) : patients.length === 0 ? (
@@ -122,7 +141,13 @@ export default function CaregiverDashboard() {
                   <div>
                     <p className="text-xs text-slate-500">Adherence</p>
                     <p
-                      className={`text-2xl font-bold ${p.adherenceRate < 70 ? "text-destructive" : p.adherenceRate < 85 ? "text-warning" : "text-success"}`}
+                      className={`text-2xl font-bold ${
+                        p.adherenceRate < 50
+                          ? "text-destructive"
+                          : p.adherenceRate < 80
+                            ? "text-warning"
+                            : "text-success"
+                      }`}
                     >
                       {p.adherenceRate}%
                     </p>
