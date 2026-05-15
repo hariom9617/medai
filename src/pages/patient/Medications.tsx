@@ -265,7 +265,7 @@ export default function Medications() {
 }
 
 function SOSMedCard({ med, onTake }: { med: PatientSOSMedication; onTake: () => void }) {
-  const { isReady, remainingMinutes } = med.cooldownStatus;
+  const { isReady = true, remainingMinutes } = med.cooldownStatus ?? {};
 
   const cooldownLabel = () => {
     if (!remainingMinutes) return "";
