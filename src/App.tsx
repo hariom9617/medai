@@ -22,6 +22,8 @@ import DoctorDashboard from "./pages/doctor/Dashboard";
 import DoctorPatients from "./pages/doctor/Patients";
 import DoctorPatientDetail from "./pages/doctor/PatientDetail";
 import DoctorMedications from "./pages/doctor/Medications";
+import DoctorSOSMedications from "./pages/doctor/SOSMedications";
+import DoctorSOSMedicationDetail from "./pages/doctor/SOSMedicationDetail";
 import DoctorCreatePatient from "./pages/doctor/CreatePatient";
 import DoctorCreateCaregiver from "./pages/doctor/CreateCaregiver";
 import DoctorAlerts from "./pages/doctor/Alerts";
@@ -71,6 +73,8 @@ function AppRoutes() {
       <Route path="/doctor/caregivers/create" element={<RoleGuard allow={["doctor"]}><DoctorCreateCaregiver /></RoleGuard>} />
       <Route path="/doctor/patients/:id" element={<RoleGuard allow={["doctor"]}><DoctorPatientDetail /></RoleGuard>} />
       <Route path="/doctor/medications" element={<RoleGuard allow={["doctor"]}><DoctorMedications /></RoleGuard>} />
+      <Route path="/doctor/sos-medications" element={<RoleGuard allow={["doctor"]}><DoctorSOSMedications /></RoleGuard>} />
+      <Route path="/doctor/sos-medications/:id" element={<RoleGuard allow={["doctor"]}><DoctorSOSMedicationDetail /></RoleGuard>} />
       <Route path="/doctor/alerts" element={<RoleGuard allow={["doctor"]}><DoctorAlerts /></RoleGuard>} />
       <Route path="/doctor/reports" element={<RoleGuard allow={["doctor"]}><DoctorReports /></RoleGuard>} />
       <Route path="/doctor/report" element={<Navigate to="/doctor/reports" replace />} />

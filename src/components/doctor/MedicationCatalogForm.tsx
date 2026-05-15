@@ -13,18 +13,12 @@ const schema = z.object({
   form: z.enum(["tablet", "capsule", "syrup", "injection", "other"], {
     required_error: "Form is required",
   }),
+  importance: z.enum(["critical", "important", "routine"]).default("routine"),
   manufacturer: z.string().trim().max(100).optional(),
   description: z.string().trim().max(500).optional(),
   sideEffects: z.string().trim().max(500).optional(),
 });
 
-// Convert string input to array for API
-function parseSideEffects(value: string | undefined): string[] | undefined {
-  if (!value) return undefined;
-  return value.split(",").map(s => s.trim()).filter(s => s.length > 0);
-}
-
-// Convert array to string for form input
 function formatSideEffects(value: string[] | undefined): string {
   if (!value || value.length === 0) return "";
   return value.join(", ");
@@ -60,6 +54,7 @@ export function MedicationCatalogForm({
       category: "",
       strength: "",
       form: "tablet",
+      importance: "routine",
       manufacturer: "",
       description: "",
       sideEffects: "",
@@ -74,6 +69,7 @@ export function MedicationCatalogForm({
         category: initialData.category,
         strength: initialData.strength,
         form: initialData.form,
+        importance: (initialData as any).importance ?? "routine",
         manufacturer: initialData.manufacturer || "",
         description: initialData.description || "",
         sideEffects: formatSideEffects(initialData.sideEffects),
@@ -115,6 +111,48 @@ export function MedicationCatalogForm({
           </select>
         </FormField>
       </div>
+
+      {/* Importance field */}
+      <FormField label="Importance *" error={errors.importance?.message}>
+        <div className="grid grid-cols-3 gap-3">
+          {(["critical", "important", "routine"] as const).map((level) => {
+            const config = {
+              critical: {
+                emoji: "🔴",
+                label: "Critical",
+                selectedClass: "border-red-400 bg-red-50 text-red-700",
+              },
+              important: {
+                emoji: "🟡",
+                label: "Important",
+                selectedClass: "border-yellow-400 bg-yellow-50 text-yellow-700",
+              },
+              routine: {
+                emoji: "🟢",
+                label: "Routine",
+                selectedClass: "border-green-400 bg-green-50 text-green-700",
+              },
+            }[level];
+            return (
+              <label
+                key={level}
+                className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-slate-200 p-3 text-center transition hover:border-slate-300 has-[:checked]:border-current"
+              >
+                <input
+                  type="radio"
+                  value={level}
+                  {...register("importance")}
+                  className="sr-only"
+                />
+                <span className="text-lg">{config.emoji}</span>
+                <span className="text-xs font-semibold text-slate-700">
+                  {config.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </FormField>
 
       <FormField label="Manufacturer" error={errors.manufacturer?.message}>
         <Input placeholder="e.g. Pfizer" {...register("manufacturer")} />

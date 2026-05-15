@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Pill, Calendar, BarChart3, Bell, LogOut, FileText, Activity, Settings, Stethoscope, Heart, UserPlus, HeartHandshake } from "lucide-react";
+import { LayoutDashboard, Pill, Calendar, BarChart3, Bell, LogOut, FileText, Activity, Settings, Stethoscope, Heart, UserPlus, HeartHandshake, Siren } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/context/AuthContext";
 import { Role } from "@/types";
@@ -24,6 +24,7 @@ const NAV_BY_ROLE: Record<Role, { to: string; label: string; icon: React.Compone
     { to: "/doctor/patients/create", label: "Add Patient", icon: UserPlus },
     { to: "/doctor/caregivers/create", label: "Add Caregiver", icon: HeartHandshake },
     { to: "/doctor/medications", label: "Medication Catalog", icon: Pill },
+    { to: "/doctor/sos-medications", label: "SOS Medications", icon: Siren },
     { to: "/doctor/alerts", label: "Alerts", icon: Bell },
     { to: "/doctor/reports", label: "Reports", icon: FileText },
   ],

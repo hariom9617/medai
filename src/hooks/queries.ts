@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { SOSMedicationsApi, type SOSMedicationCreateInput } from "@/api/sos-medications";
 import { AdherenceApi } from "@/api/adherence";
 import { AdminApi } from "@/api/admin";
 import { AiApi } from "@/api/ai";
@@ -51,6 +52,12 @@ export const qk = {
   // Patient Medication Assignments
   doctorPatientMedicationAssignments: (patientId: string) =>
     ["doctor", "patients", patientId, "medication-assignments"] as const,
+  // SOS Medications
+  sosMedications: ["sos-medications"] as const,
+  sosMedication: (id: string) => ["sos-medications", id] as const,
+  sosMedicationLogs: (id: string) => ["sos-medications", id, "logs"] as const,
+  patientSosLogs: (patientId: string) => ["sos-logs", "patient", patientId] as const,
+  mySOSMedications: ["sos-medications", "my"] as const,
 };
 
 // ---------- Medications ----------
@@ -681,6 +688,107 @@ export function useDeletePatientMedicationAssignment(patientId: string) {
       qc.invalidateQueries({
         queryKey: qk.doctorPatientMedicationAssignments(patientId),
       });
+    },
+  });
+}
+
+// ---------- SOS Medications ----------
+export const useSOSMedications = () =>
+  useQuery({
+    queryKey: qk.sosMedications,
+    queryFn: SOSMedicationsApi.list,
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const useSOSMedication = (id: string | undefined) =>
+  useQuery({
+    queryKey: qk.sosMedication(id ?? ""),
+    queryFn: () => SOSMedicationsApi.byId(id!),
+    enabled: !!id,
+  });
+
+export const useSOSMedicationLogs = (id: string | undefined) =>
+  useQuery({
+    queryKey: qk.sosMedicationLogs(id ?? ""),
+    queryFn: () => SOSMedicationsApi.logs(id!),
+    enabled: !!id,
+  });
+
+export const usePatientSOSLogs = (patientId: string | undefined) =>
+  useQuery({
+    queryKey: qk.patientSosLogs(patientId ?? ""),
+    queryFn: () => SOSMedicationsApi.patientLogs(patientId!),
+    enabled: !!patientId,
+  });
+
+export const useMySOSMedications = () =>
+  useQuery({
+    queryKey: qk.mySOSMedications,
+    queryFn: SOSMedicationsApi.myMedications,
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+
+export function useCreateSOSMedication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SOSMedicationCreateInput) => SOSMedicationsApi.create(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.sosMedications }),
+  });
+}
+
+export function useUpdateSOSMedication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<SOSMedicationCreateInput> }) =>
+      SOSMedicationsApi.update(id, patch),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: qk.sosMedications });
+      qc.invalidateQueries({ queryKey: qk.sosMedication(id) });
+    },
+  });
+}
+
+export function useDeleteSOSMedication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => SOSMedicationsApi.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.sosMedications }),
+  });
+}
+
+export function useAssignSOSPatients() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patientIds }: { id: string; patientIds: string[] }) =>
+      SOSMedicationsApi.assignPatients(id, patientIds),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: qk.sosMedication(id) });
+      qc.invalidateQueries({ queryKey: qk.sosMedications });
+    },
+  });
+}
+
+export function useUnassignSOSPatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patientId }: { id: string; patientId: string }) =>
+      SOSMedicationsApi.unassignPatient(id, patientId),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: qk.sosMedication(id) });
+      qc.invalidateQueries({ queryKey: qk.sosMedications });
+    },
+  });
+}
+
+export function useTakeSOSDose() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { sosMedicationId: string; reason: string; painLevel?: number; notes?: string }) =>
+      SOSMedicationsApi.takeDose(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.mySOSMedications });
+      qc.invalidateQueries({ queryKey: ["sos-logs"] });
     },
   });
 }

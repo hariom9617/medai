@@ -247,6 +247,50 @@ export interface MedicationCatalog {
 }
 
 // ---------- Patient Medication Assignment ----------
+// ---------- SOS Medications ----------
+export interface SOSMedication {
+  id: string;
+  _id?: string;
+  name: string;
+  description?: string;
+  dosage: string;
+  unit: string;
+  category: string;
+  importance: "critical" | "important";
+  sideEffects?: string;
+  instructions?: string;
+  maxDosesPerDay: number;
+  cooldownMinutes: number;
+  assignedPatients?: string[];
+  patientCount?: number;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SOSDoseLog {
+  id: string;
+  _id?: string;
+  sosMedicationId: string;
+  medicationName?: string;
+  patientId: string;
+  patientName?: string;
+  reason: string;
+  painLevel?: number;
+  notes?: string;
+  takenAt: string;
+  verifiedPhotoUrl?: string;
+  createdAt?: string;
+}
+
+export interface PatientSOSMedication extends SOSMedication {
+  cooldownStatus: {
+    isReady: boolean;
+    availableAt?: string;
+    remainingMinutes?: number;
+  };
+}
+
 export interface PatientMedicationAssignment {
   id: string;
   _id?: string;

@@ -77,6 +77,7 @@ export default function DoctorMedications() {
           category: data.category,
           strength: data.strength,
           form: data.form,
+          importance: data.importance,
           manufacturer: data.manufacturer,
           description: data.description,
           sideEffects: sideEffectsArray,
@@ -87,6 +88,7 @@ export default function DoctorMedications() {
           id: selectedMedication.id || selectedMedication._id || "",
           patch: {
             ...data,
+            importance: data.importance,
             sideEffects: sideEffectsArray,
           },
         });

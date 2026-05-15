@@ -51,6 +51,7 @@ export interface MedicationCatalogCreateInput {
   category: string;
   strength: string;
   form: "tablet" | "capsule" | "syrup" | "injection" | "other";
+  importance?: "critical" | "important" | "routine"; 
   manufacturer?: string;
   description?: string;
   sideEffects?: string[];

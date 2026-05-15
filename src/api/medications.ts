@@ -11,6 +11,7 @@ export interface MedicationCreateInput {
   instructions?: string;
   patientId?: string;
   prescribedBy?: string;
+  importance?: "critical" | "important" | "routine"; 
 }
 
 export const MedicationsApi = {
