@@ -33,6 +33,9 @@ import {
   usePatientAssignedMedications,
   useAssignMedicationToPatient,
   useDeletePatientMedicationAssignment,
+  useSOSMedications,
+  useAssignSOSPatients,
+  useUnassignSOSPatient,
 } from "@/hooks/queries";
 import {
   Pill,
@@ -42,6 +45,7 @@ import {
   NotebookPen,
   Inbox,
   Trash2,
+  AlertTriangle as SirenIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, isValid } from "date-fns";
@@ -72,8 +76,14 @@ export default function DoctorPatientDetail() {
   const assignMedication = useAssignMedicationToPatient();
   const deleteAssignment = useDeletePatientMedicationAssignment(id || "");
 
+  const { data: sosMedications = [] } = useSOSMedications();
+  const assignSOSPatients = useAssignSOSPatients();
+  const unassignSOSPatient = useUnassignSOSPatient();
+
   const [note, setNote] = useState("");
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isAssignSOSModalOpen, setIsAssignSOSModalOpen] = useState(false);
+  const [pendingSOSIds, setPendingSOSIds] = useState<string[]>([]);
 
   const monthlyAdherence = useMemo(() => {
     const history = Array.isArray(adherenceHistory) ? adherenceHistory : [];
@@ -311,6 +321,229 @@ export default function DoctorPatientDetail() {
               )}
             </div>
           </SectionCard>
+
+          {/* SOS Medications Section */}
+          {(() => {
+            const patientId = id ?? "";
+            const assignedSOS = sosMedications.filter((s) =>
+              (s.assignedPatients ?? []).includes(patientId)
+            );
+
+            const handleOpenAssignSOS = () => {
+              setPendingSOSIds(assignedSOS.map((s) => s.id));
+              setIsAssignSOSModalOpen(true);
+            };
+
+            const handleSaveSOSAssignments = async () => {
+              const wasAssigned = new Set(assignedSOS.map((s) => s.id));
+              const nowAssigned = new Set(pendingSOSIds);
+
+              const toAssign = [...nowAssigned].filter((sid) => !wasAssigned.has(sid));
+              const toRemove = [...wasAssigned].filter((sid) => !nowAssigned.has(sid));
+
+              try {
+                await Promise.all([
+                  ...toAssign.map((sid) => {
+                    const med = sosMedications.find((m) => m.id === sid);
+                    const existing = med?.assignedPatients ?? [];
+                    return assignSOSPatients.mutateAsync({
+                      id: sid,
+                      patientIds: [...existing, patientId],
+                    });
+                  }),
+                  ...toRemove.map((sid) =>
+                    unassignSOSPatient.mutateAsync({ id: sid, patientId })
+                  ),
+                ]);
+                toast.success("SOS medications updated");
+                setIsAssignSOSModalOpen(false);
+              } catch (err: any) {
+                toast.error(err?.message || "Failed to update SOS medications");
+              }
+            };
+
+            const handleQuickUnassign = async (sosId: string, sosName: string) => {
+              if (!confirm(`Remove ${sosName} from this patient?`)) return;
+              try {
+                await unassignSOSPatient.mutateAsync({ id: sosId, patientId });
+                toast.success(`${sosName} removed`);
+              } catch (err: any) {
+                toast.error(err?.message || "Failed to remove");
+              }
+            };
+
+            return (
+              <>
+                <SectionCard title="SOS (Emergency) Medications">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-slate-500">
+                        {assignedSOS.length} SOS medication{assignedSOS.length === 1 ? "" : "s"} assigned
+                      </p>
+                      <button
+                        onClick={handleOpenAssignSOS}
+                        className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        <Plus className="h-4 w-4" /> Assign SOS Medication
+                      </button>
+                    </div>
+
+                    {assignedSOS.length === 0 ? (
+                      <p className="rounded-lg border border-dashed border-red-200 bg-red-50/40 p-6 text-center text-sm text-slate-500">
+                        No SOS medications assigned yet.
+                      </p>
+                    ) : (
+                      <ul className="space-y-3">
+                        {assignedSOS.map((sos) => {
+                          const cooldown =
+                            sos.cooldownMinutes >= 60
+                              ? `${Math.floor(sos.cooldownMinutes / 60)}h${sos.cooldownMinutes % 60 > 0 ? ` ${sos.cooldownMinutes % 60}m` : ""}`
+                              : `${sos.cooldownMinutes}m`;
+                          return (
+                            <li key={sos.id} className="rounded-xl border border-red-100 bg-white p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-red-50 text-red-600">
+                                  <SirenIcon className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-semibold text-slate-900">{sos.name}</p>
+                                    <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-600">
+                                      🚨 SOS
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    {sos.dosage} {sos.unit} · {sos.category}
+                                  </p>
+                                  {sos.instructions && (
+                                    <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+                                      {sos.instructions}
+                                    </p>
+                                  )}
+                                  <div className="mt-1.5 flex gap-3 text-xs text-slate-400">
+                                    <span>Max {sos.maxDosesPerDay}/day</span>
+                                    <span>Cooldown: {cooldown}</span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleQuickUnassign(sos.id, sos.name)}
+                                  disabled={unassignSOSPatient.isPending}
+                                  className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </SectionCard>
+
+                {/* Assign SOS Modal */}
+                {isAssignSOSModalOpen && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                      className="absolute inset-0 bg-slate-900/40"
+                      onClick={() => setIsAssignSOSModalOpen(false)}
+                    />
+                    <div className="relative w-full max-w-lg card-base p-6 max-h-[90vh] overflow-y-auto">
+                      <div className="mb-5 flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-xl font-bold text-slate-900">Assign SOS Medications</h3>
+                          <p className="mt-1 text-sm text-slate-500">
+                            Select emergency medications for {patient?.fullName}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setIsAssignSOSModalOpen(false)}
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {sosMedications.length === 0 ? (
+                        <p className="text-sm text-slate-500">
+                          No SOS medications in the catalog. Create one first.
+                        </p>
+                      ) : (
+                        <div className="max-h-80 space-y-2 overflow-y-auto">
+                          {sosMedications.map((sos) => {
+                            const checked = pendingSOSIds.includes(sos.id);
+                            const cooldown =
+                              sos.cooldownMinutes >= 60
+                                ? `${Math.floor(sos.cooldownMinutes / 60)}h cooldown`
+                                : `${sos.cooldownMinutes}m cooldown`;
+                            return (
+                              <label
+                                key={sos.id}
+                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-100 p-3 hover:bg-slate-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() =>
+                                    setPendingSOSIds((prev) =>
+                                      checked
+                                        ? prev.filter((i) => i !== sos.id)
+                                        : [...prev, sos.id]
+                                    )
+                                  }
+                                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-semibold text-slate-900">{sos.name}</p>
+                                    <span
+                                      className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                                        sos.importance === "critical"
+                                          ? "bg-red-100 text-red-700"
+                                          : "bg-yellow-100 text-yellow-700"
+                                      }`}
+                                    >
+                                      {sos.importance === "critical" ? "🔴 Critical" : "🟡 Important"}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500">
+                                    {sos.dosage} {sos.unit} · {sos.category} · {cooldown}
+                                  </p>
+                                  {sos.instructions && (
+                                    <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">
+                                      {sos.instructions}
+                                    </p>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="mt-5 flex justify-end gap-3 border-t border-slate-100 pt-4">
+                        <button
+                          onClick={() => setIsAssignSOSModalOpen(false)}
+                          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveSOSAssignments}
+                          disabled={assignSOSPatients.isPending || unassignSOSPatient.isPending}
+                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                        >
+                          {assignSOSPatients.isPending || unassignSOSPatient.isPending
+                            ? "Saving..."
+                            : "Save Assignments"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <SectionCard title="Today's Dose Timeline">
             <div className="space-y-3">
